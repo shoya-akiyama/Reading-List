@@ -63,9 +63,8 @@
     .unitCard:active{transform:translateY(1px);}
     .unitCard:hover{border-color:var(--accent);}
     .unitNum{font-size:22px;font-weight:900;margin:0 0 4px;}
-    .unitLabel{font-size:11px;color:var(--sub);margin:0;}
-    .unitPills{margin-top:8px; display:flex; gap:4px; justify-content:center; flex-wrap:wrap; font-size:10px;}
-    .unitPill{border:1px solid var(--line); padding:2px 6px; border-radius:999px;}
+.unitPills{margin-top:8px; display:flex; gap:4px; justify-content:center; flex-wrap:wrap; font-size:13px;}
+    .unitPill{border:1px solid var(--line); padding:3px 8px; border-radius:999px;}
     .unitPill.good{color:var(--good);}
     .unitPill.bad{color:var(--bad);}
 
@@ -165,6 +164,27 @@
       line-height:1.4;
       padding:0 2px;
     }
+    .footerGrid3{
+      max-width:980px;
+      margin:0 auto;
+      display:grid;
+      grid-template-columns:1fr 1fr 1fr 1fr;
+      gap:8px;
+    }
+    .footerGrid3 button{font-size:13px;padding:10px 6px;}
+    .modeBtn.active{border-color:var(--accent);color:var(--accent);}
+    /* List view */
+    .listWrap{padding-bottom:24px;}
+    .listItem{
+      border:1px solid var(--line);
+      background:var(--card);
+      border-radius:12px;
+      padding:12px;
+      margin:8px 0;
+    }
+    .listJa{font-size:15px;line-height:1.6;margin:0;}
+    .listEn{font-size:15px;line-height:1.6;color:var(--accent);margin:4px 0 0;}
+    .listMark{font-size:11px;margin-top:6px;color:var(--sub);}
   </style>
 </head>
 <body>
@@ -175,10 +195,7 @@
       <div class="topbar">
         <button class="ghost">戻る</button>
         <h1 class="title">ユニット選択</h1>
-        <button id="btnResetAll">リセット</button>
-      </div>
-      <div class="small">
-        全36ユニットから学習するユニットを選んでください。
+        <button class="ghost">　</button>
       </div>
     </header>
     <main>
@@ -205,15 +222,26 @@
     </main>
   </section>
 
+  <!-- LIST VIEW -->
+  <section class="screen" id="listView">
+    <header>
+      <div class="topbar">
+        <button id="btnListBack">戻る</button>
+        <h1 class="title" id="listTitle">一覧</h1>
+        <button class="ghost"> </button>
+      </div>
+    </header>
+    <main class="listWrap" id="listMain"></main>
+  </section>
+
   <!-- PRACTICE -->
   <section class="screen" id="practice">
     <header>
       <div class="topbar">
         <button id="btnBack">戻る</button>
         <h1 class="title" id="practiceTitle">学習</h1>
-        <button id="btnStop">停止</button>
+        <button class="ghost">　</button>
       </div>
-      <div class="small" id="practiceSub"></div>
     </header>
 
     <main class="practiceWrap" id="practiceMain">
@@ -221,11 +249,12 @@
     </main>
 
     <div class="footerBar">
-      <div class="footerGrid">
-        <button id="btnPrev">◀ 前の文</button>
-        <button id="btnNext">次の文 ▶</button>
+      <div class="footerGrid3">
+        <button id="btnPrev">◀ 前</button>
+        <button id="btnNext">次 ▶</button>
+        <button id="btnXOnly" class="modeBtn">X復習</button>
+        <button id="btnListView" class="modeBtn">一覧</button>
       </div>
-      <div class="hint" id="navHint"></div>
     </div>
   </section>
 
@@ -238,7 +267,6 @@
   const practice = document.getElementById("practice");
   const homeGrid = document.getElementById("homeGrid");
   const homeTitle = document.getElementById("homeTitle");
-  const btnResetAll = document.getElementById("btnResetAll");
   const btnReset = document.getElementById("btnReset");
   const btnBackToUnits = document.getElementById("btnBackToUnits");
 
@@ -261,22 +289,39 @@
 
   // --- speech (EN only)
   let voices = [];
-  function loadVoices(){ voices = window.speechSynthesis ? speechSynthesis.getVoices() : []; }
+  let cachedVoice = null;
+  function loadVoices(){
+    voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
+    cachedVoice = pickEnVoice();
+  }
   if ("speechSynthesis" in window){
     loadVoices();
-    window.speechSynthesis.onvoiceschanged = () => loadVoices();
+    window.speechSynthesis.onvoiceschanged = function(){ loadVoices(); };
   }
   function pickEnVoice(){
-    return voices.find(v => (v.lang || "").toLowerCase().startsWith("en")) || null;
+    // Prefer high-quality Samantha (iOS) or Google US English voices
+    var prefs = ["samantha", "google us english", "karen", "daniel", "alex", "english united states"];
+    for (var p = 0; p < prefs.length; p++){
+      var found = voices.find(function(v){
+        return v.name.toLowerCase().indexOf(prefs[p]) !== -1;
+      });
+      if (found) return found;
+    }
+    // Fallback: any en-US voice
+    var enUS = voices.find(function(v){ return (v.lang || "").toLowerCase() === "en-us"; });
+    if (enUS) return enUS;
+    // Fallback: any en voice
+    return voices.find(function(v){ return (v.lang || "").toLowerCase().startsWith("en"); }) || null;
   }
   function stopSpeak(){ if ("speechSynthesis" in window) speechSynthesis.cancel(); }
   function speakEn(text){
     if (!("speechSynthesis" in window)) return;
     stopSpeak();
-    const u = new SpeechSynthesisUtterance(text);
+    var u = new SpeechSynthesisUtterance(text);
     u.lang = "en-US";
-    const v = pickEnVoice();
-    if (v) u.voice = v;
+    u.rate = 0.9;
+    u.pitch = 1.0;
+    if (cachedVoice) u.voice = cachedVoice;
     speechSynthesis.speak(u);
   }
 
@@ -313,8 +358,18 @@
   }
 
   // --- UI nav
+  var listView = document.getElementById("listView");
+  var listMain = document.getElementById("listMain");
+  var listTitle = document.getElementById("listTitle");
+  var btnListBack = document.getElementById("btnListBack");
+  var btnXOnly = document.getElementById("btnXOnly");
+  var btnListView = document.getElementById("btnListView");
+  var xOnlyMode = false;
+  var xOnlyItems = [];
+  var revealedState = {}; // { sentId: [true, false, true, ...] }
+
   function showScreen(screenEl){
-    [unitSelect, home, practice].forEach(s => s.classList.remove("active"));
+    [unitSelect, home, practice, listView].forEach(s => s.classList.remove("active"));
     screenEl.classList.add("active");
     window.scrollTo({top:0, behavior:"auto"});
   }
@@ -339,10 +394,11 @@
   function showPractice(sentIndex){
     stopSpeak();
     activeGroup = selectedUnit;
+    xOnlyMode = false;
+    xOnlyItems = [];
     indexInGroup = sentIndex;
     showScreen(practice);
     practiceTitle.textContent = "Unit " + selectedUnit;
-    practiceSub.innerHTML = "日本語チャンクをタップ→英語チャンク表示（トグル）＋英語発音。<br>左右スワイプでも前後に移動できます。";
     renderOne();
   }
 
@@ -351,7 +407,7 @@
     const marks = loadMarks();
     let good=0, bad=0;
     items.forEach(s => {
-      if (marks[s.id] === "〇") good++;
+      if (marks[s.id] === "\u25CB") good++;
       else if (marks[s.id] === "X") bad++;
     });
     return {total: items.length, good, bad, none: items.length - good - bad};
@@ -365,12 +421,11 @@
       card.className = "unitCard";
       card.innerHTML =
         '<div class="unitNum">' + u + '</div>' +
-        '<div class="unitLabel">Unit ' + u + '</div>' +
         '<div class="unitPills">' +
           '<span class="unitPill good">\u25CB' + c.good + '</span>' +
           '<span class="unitPill bad">X' + c.bad + '</span>' +
         '</div>';
-      card.addEventListener("click", (function(unit){ return function(){ showHome(unit); }; })(u));
+      card.addEventListener("click", (function(unit){ return function(){ selectedUnit = unit; showPractice(getLast(unit)); }; })(u));
       unitGrid.appendChild(card);
     }
   }
@@ -415,7 +470,7 @@
     }
   }
 
-  function buildJaLine(jaChunks, enP){
+  function buildJaLine(jaChunks, enP, sentId){
     var frag = document.createDocumentFragment();
     jaChunks.forEach(function(t, i){
       if (i > 0){
@@ -430,14 +485,14 @@
       sp.dataset.i = i;
       sp.addEventListener("click", function(e){
         e.stopPropagation();
-        toggleChunk(enP, i);
+        toggleChunk(enP, i, sentId);
       });
       frag.appendChild(sp);
     });
     return frag;
   }
 
-  function buildEnLine(enChunks){
+  function buildEnLine(enChunks, revealed){
     var frag = document.createDocumentFragment();
     enChunks.forEach(function(t, i){
       if (i > 0){
@@ -447,7 +502,7 @@
         frag.appendChild(sl);
       }
       var sp = document.createElement("span");
-      sp.className = "enChunk hidden";
+      sp.className = (revealed && revealed[i]) ? "enChunk" : "enChunk hidden";
       sp.textContent = t.trim();
       sp.dataset.i = i;
       frag.appendChild(sp);
@@ -455,7 +510,7 @@
     return frag;
   }
 
-  function toggleChunk(enP, idx){
+  function toggleChunk(enP, idx, sentId){
     var enSpan = enP.querySelector('.enChunk[data-i="'+idx+'"]');
     if (!enSpan) return;
     var wasHidden = enSpan.classList.contains("hidden");
@@ -464,6 +519,9 @@
       speakEn(enSpan.textContent.replace(/\s+/g, " ").trim());
     } else {
       enSpan.classList.add("hidden");
+    }
+    if (sentId && revealedState[sentId]){
+      revealedState[sentId][idx] = !wasHidden ? false : true;
     }
   }
 
@@ -477,14 +535,22 @@
     btnBad.classList.toggle("activeBad", mark === "X");
   }
 
+  function currentItems(){
+    if (xOnlyMode) return xOnlyItems;
+    return unitItems(selectedUnit);
+  }
+
   function renderOne(){
-    var items = unitItems(selectedUnit);
+    var items = currentItems();
+    btnXOnly.classList.toggle("active", xOnlyMode);
     if (items.length === 0){
-      oneCard.innerHTML = "<div class='small'>このユニットに文がありません。</div>";
+      oneCard.innerHTML = "<div class='small'>" + (xOnlyMode ? "Xの文がありません。" : "このユニットに文がありません。") + "</div>";
+      btnPrev.disabled = true;
+      btnNext.disabled = true;
       return;
     }
     indexInGroup = Math.max(0, Math.min(indexInGroup, items.length - 1));
-    setLast(selectedUnit, indexInGroup);
+    if (!xOnlyMode) setLast(selectedUnit, indexInGroup);
 
     var s = items[indexInGroup];
     var mark = getMark(s.id);
@@ -499,15 +565,18 @@
     var enP = document.createElement("p");
     enP.className = "line enLine";
 
-    enP.appendChild(buildEnLine(s.en_chunks));
-    jaP.appendChild(buildJaLine(s.ja_chunks, enP));
+    if (!revealedState[s.id]){
+      revealedState[s.id] = s.en_chunks.map(function(){ return false; });
+    }
+    enP.appendChild(buildEnLine(s.en_chunks, revealedState[s.id]));
+    jaP.appendChild(buildJaLine(s.ja_chunks, enP, s.id));
 
     var meta = document.createElement("div");
     meta.className = "meta";
 
     var tag = document.createElement("span");
     tag.className = "pill";
-    tag.textContent = "#" + (indexInGroup + 1) + " / " + items.length;
+    tag.textContent = (xOnlyMode ? "X復習 " : "") + "#" + (indexInGroup + 1) + " / " + items.length;
 
     var spacer = document.createElement("span");
     spacer.className = "spacer";
@@ -557,9 +626,8 @@
 
     oneCard.appendChild(wrap);
 
-    navHint.textContent = "\u30d2\u30f3\u30c8\uff1a\u30ab\u30fc\u30c9\u4e0a\u3067\u5de6\u53f3\u30b9\u30ef\u30a4\u30d7\uff08\u2190 \u6b21 / \u2192 \u524d\uff09";
     btnPrev.disabled = (indexInGroup === 0);
-    btnNext.disabled = (indexInGroup === items.length - 1);
+    btnNext.disabled = false;
   }
 
   function goPrev(){
@@ -570,9 +638,12 @@
     window.scrollTo({top:0, behavior:"auto"});
   }
   function goNext(){
-    var items = unitItems(selectedUnit);
-    if (indexInGroup >= items.length - 1) return;
-    indexInGroup += 1;
+    var items = currentItems();
+    if (indexInGroup >= items.length - 1){
+      indexInGroup = 0;
+    } else {
+      indexInGroup += 1;
+    }
     stopSpeak();
     renderOne();
     window.scrollTo({top:0, behavior:"auto"});
@@ -603,19 +674,51 @@
 
   // events
   btnBackToUnits.addEventListener("click", function(){ showUnitSelect(); });
-  btnBack.addEventListener("click", function(){ showHome(selectedUnit); });
-  btnStop.addEventListener("click", function(){ stopSpeak(); });
+  btnBack.addEventListener("click", function(){ showUnitSelect(); });
   btnPrev.addEventListener("click", function(){ goPrev(); });
   btnNext.addEventListener("click", function(){ goNext(); });
 
-  btnResetAll.addEventListener("click", function(){
-    var ok = confirm("\u5168\u30e6\u30cb\u30c3\u30c8\u306e\u25cb/X\u8a18\u9332\u3068\u7d9a\u304d\u4f4d\u7f6e\u3092\u3059\u3079\u3066\u6d88\u3057\u307e\u3059\u304b\uff1f");
-    if (!ok) return;
-    localStorage.removeItem(MARK_KEY);
-    localStorage.removeItem(LAST_KEY);
-    renderUnitSelect();
-    alert("\u30ea\u30bb\u30c3\u30c8\u3057\u307e\u3057\u305f\u3002");
+  btnXOnly.addEventListener("click", function(){
+    if (xOnlyMode){
+      xOnlyMode = false;
+      xOnlyItems = [];
+      indexInGroup = getLast(selectedUnit);
+    } else {
+      var marks = loadMarks();
+      xOnlyItems = unitItems(selectedUnit).filter(function(s){ return marks[s.id] === "X"; });
+      xOnlyMode = true;
+      indexInGroup = 0;
+    }
+    renderOne();
   });
+
+  btnListView.addEventListener("click", function(){
+    showListView();
+  });
+
+  btnListBack.addEventListener("click", function(){
+    showPractice(getLast(selectedUnit));
+  });
+
+  function showListView(){
+    listTitle.textContent = "Unit " + selectedUnit + " \u4e00\u89a7";
+    showScreen(listView);
+    listMain.innerHTML = "";
+    var items = unitItems(selectedUnit);
+    var marks = loadMarks();
+    items.forEach(function(s, i){
+      var div = document.createElement("div");
+      div.className = "listItem";
+      var mark = marks[s.id] || "";
+      var markLabel = mark === "\u25CB" ? "\u25CB" : mark === "X" ? "X" : "\u2014";
+      div.innerHTML =
+        '<div class="listJa">' + escapeHtml(s.ja_chunks.join(" / ")) + '</div>' +
+        '<div class="listEn">' + escapeHtml(s.en_chunks.join(" / ")) + '</div>' +
+        '<div class="listMark">#' + (i+1) + ' ' + markLabel + '</div>';
+      listMain.appendChild(div);
+    });
+  }
+
 
   btnReset.addEventListener("click", function(){
     var ok = confirm("\u3053\u306e\u30e6\u30cb\u30c3\u30c8\u306e\u25cb/X\u8a18\u9332\u3092\u6d88\u3057\u307e\u3059\u304b\uff1f");
