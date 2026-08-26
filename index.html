@@ -183,7 +183,8 @@
       padding:12px;
       margin:8px 0;
     }
-    .listJa{font-size:17px;line-height:1.7;margin:0;}
+    .listJa{font-size:17px;line-height:1.7;margin:0;user-select:none;}
+    .listFullBtn{font-size:12px;padding:5px 12px;width:auto;border-radius:999px;}
     .listEn{font-size:17px;line-height:1.7;color:var(--accent);margin:7px 0 0;min-height:1.7em;}
     .listHint{text-align:center;margin:0 0 12px;color:var(--sub);font-size:12px;}
     .listMeta{
@@ -758,7 +759,7 @@
     listMain.innerHTML = "";
     var hint = document.createElement("p");
     hint.className = "listHint";
-    hint.textContent = "\u65e5\u672c\u8a9e\u3092\u30bf\u30c3\u30d7\u3059\u308b\u3068\u3001\u82f1\u6587\u5168\u4f53\u3092\u8868\u793a\u30fb\u767a\u97f3\u3057\u307e\u3059";
+    hint.textContent = "\u65e5\u672c\u8a9e\u3092\u30c1\u30e3\u30f3\u30af\u3054\u3068\u306b\u30bf\u30c3\u30d7\u3059\u308b\u3068\u3001\u305d\u306e\u90e8\u5206\u3060\u3051\u82f1\u6587\u3092\u8868\u793a\u30fb\u767a\u97f3\u3057\u307e\u3059";
     listMain.appendChild(hint);
     var items = unitItems(selectedUnit);
     items.forEach(function(s, i){
@@ -773,19 +774,7 @@
         revealedState[s.id] = s.en_chunks.map(function(){ return false; });
       }
       enP.appendChild(buildEnLine(s.en_chunks, revealedState[s.id]));
-      jaP.classList.add("chunkBtn");
-      jaP.textContent = s.ja_chunks.join(" / ");
-      jaP.addEventListener("click", function(){
-        var reveal = revealedState[s.id].some(function(value){ return !value; });
-        revealedState[s.id] = s.en_chunks.map(function(){ return reveal; });
-        enP.innerHTML = "";
-        enP.appendChild(buildEnLine(s.en_chunks, revealedState[s.id]));
-        if (reveal){
-          playSentenceAudio(s.id, s.en_chunks.join(" ").replace(/\s+/g, " ").trim());
-        } else {
-          stopSpeak();
-        }
-      });
+      jaP.appendChild(buildJaLine(s.ja_chunks, enP, s.id));
 
       var meta = document.createElement("div");
       meta.className = "listMeta";
@@ -793,6 +782,16 @@
       number.textContent = "#" + (i + 1);
       var spacer = document.createElement("span");
       spacer.className = "spacer";
+      var fullBtn = document.createElement("button");
+      fullBtn.className = "listFullBtn";
+      fullBtn.textContent = "全文";
+      fullBtn.setAttribute("aria-label", "英文全体を表示して発音");
+      fullBtn.addEventListener("click", function(){
+        revealedState[s.id] = s.en_chunks.map(function(){ return true; });
+        enP.innerHTML = "";
+        enP.appendChild(buildEnLine(s.en_chunks, revealedState[s.id]));
+        playSentenceAudio(s.id, s.en_chunks.join(" ").replace(/\s+/g, " ").trim());
+      });
       var goodBtn = document.createElement("button");
       goodBtn.className = "listMarkBtn good";
       goodBtn.textContent = "\u25CB";
@@ -818,6 +817,7 @@
 
       meta.appendChild(number);
       meta.appendChild(spacer);
+      meta.appendChild(fullBtn);
       meta.appendChild(goodBtn);
       meta.appendChild(badBtn);
       div.appendChild(jaP);
