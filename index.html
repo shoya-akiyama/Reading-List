@@ -305,6 +305,7 @@
   // --- speech (EN only)
   let voices = [];
   let cachedVoice = null;
+  let currentAudio = null;
   function loadVoices(){
     voices = window.speechSynthesis ? speechSynthesis.getVoices() : [];
     cachedVoice = pickEnVoice();
@@ -328,7 +329,14 @@
     // Fallback: any en voice
     return voices.find(function(v){ return (v.lang || "").toLowerCase().startsWith("en"); }) || null;
   }
-  function stopSpeak(){ if ("speechSynthesis" in window) speechSynthesis.cancel(); }
+  function stopSpeak(){
+    if (currentAudio){
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
+  }
   function speakEn(text){
     if (!("speechSynthesis" in window)) return;
     stopSpeak();
@@ -338,6 +346,28 @@
     u.pitch = 1.0;
     if (cachedVoice) u.voice = cachedVoice;
     speechSynthesis.speak(u);
+  }
+
+  function playSentenceAudio(sentId, fallbackText){
+    stopSpeak();
+    var audio = new Audio("audio/" + sentId + ".mp3");
+    var fellBack = false;
+    currentAudio = audio;
+
+    function fallback(){
+      if (fellBack) return;
+      fellBack = true;
+      if (currentAudio === audio) currentAudio = null;
+      speakEn(fallbackText);
+    }
+
+    audio.addEventListener("ended", function(){
+      if (currentAudio === audio) currentAudio = null;
+    }, {once:true});
+    audio.addEventListener("error", fallback, {once:true});
+
+    var result = audio.play();
+    if (result && typeof result.catch === "function") result.catch(fallback);
   }
 
   // --- storage
@@ -728,7 +758,7 @@
     listMain.innerHTML = "";
     var hint = document.createElement("p");
     hint.className = "listHint";
-    hint.textContent = "\u65e5\u672c\u8a9e\u3092\u30bf\u30c3\u30d7\u3059\u308b\u3068\u3001\u5bfe\u5fdc\u3059\u308b\u82f1\u8a9e\u3092\u8868\u793a\u30fb\u767a\u97f3\u3057\u307e\u3059";
+    hint.textContent = "\u65e5\u672c\u8a9e\u3092\u30bf\u30c3\u30d7\u3059\u308b\u3068\u3001\u82f1\u6587\u5168\u4f53\u3092\u8868\u793a\u30fb\u767a\u97f3\u3057\u307e\u3059";
     listMain.appendChild(hint);
     var items = unitItems(selectedUnit);
     items.forEach(function(s, i){
@@ -743,7 +773,19 @@
         revealedState[s.id] = s.en_chunks.map(function(){ return false; });
       }
       enP.appendChild(buildEnLine(s.en_chunks, revealedState[s.id]));
-      jaP.appendChild(buildJaLine(s.ja_chunks, enP, s.id));
+      jaP.classList.add("chunkBtn");
+      jaP.textContent = s.ja_chunks.join(" / ");
+      jaP.addEventListener("click", function(){
+        var reveal = revealedState[s.id].some(function(value){ return !value; });
+        revealedState[s.id] = s.en_chunks.map(function(){ return reveal; });
+        enP.innerHTML = "";
+        enP.appendChild(buildEnLine(s.en_chunks, revealedState[s.id]));
+        if (reveal){
+          playSentenceAudio(s.id, s.en_chunks.join(" ").replace(/\s+/g, " ").trim());
+        } else {
+          stopSpeak();
+        }
+      });
 
       var meta = document.createElement("div");
       meta.className = "listMeta";

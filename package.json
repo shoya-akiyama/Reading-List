@@ -1,0 +1,12 @@
+{
+  "name": "english-reading-audio",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate-audio": "node scripts/generate-audio.mjs"
+  },
+  "dependencies": {
+    "ffmpeg-static": "^5.2.0",
+    "kokoro-js": "^1.2.1"
+  }
+}

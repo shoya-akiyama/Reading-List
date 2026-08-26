@@ -1,0 +1,5 @@
+node_modules/
+.cache/
+audio/*.tmp
+audio/*.tmp.mp3
+audio/*.wav
