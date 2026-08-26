@@ -13,10 +13,12 @@ const modelId = "onnx-community/Kokoro-82M-v1.0-ONNX";
 const force = process.argv.includes("--force");
 const unitArg = process.argv.find((arg) => arg.startsWith("--unit="));
 const limitArg = process.argv.find((arg) => arg.startsWith("--limit="));
+const shardArg = process.argv.find((arg) => arg.startsWith("--shard="));
 const voiceArg = process.argv.find((arg) => arg.startsWith("--voice="));
 const speedArg = process.argv.find((arg) => arg.startsWith("--speed="));
 const selectedUnit = unitArg ? Number(unitArg.split("=")[1]) : null;
 const limit = limitArg ? Number(limitArg.split("=")[1]) : null;
+const shardParts = shardArg ? shardArg.split("=")[1].split("/").map(Number) : null;
 const voice = voiceArg ? voiceArg.split("=")[1] : "af_heart";
 const speed = speedArg ? Number(speedArg.split("=")[1]) : 0.9;
 
@@ -30,6 +32,14 @@ if (selectedUnit !== null) {
     throw new Error("--unit must be an integer from 1 to 36");
   }
   sentences = sentences.filter((sentence) => sentence.group === selectedUnit);
+}
+if (shardParts) {
+  const [shardNumber, shardCount] = shardParts;
+  if (!Number.isInteger(shardNumber) || !Number.isInteger(shardCount) ||
+      shardNumber < 1 || shardCount < 1 || shardNumber > shardCount) {
+    throw new Error("--shard must use the format N/TOTAL, for example --shard=1/4");
+  }
+  sentences = sentences.filter((_, index) => index % shardCount === shardNumber - 1);
 }
 if (limit !== null) {
   if (!Number.isInteger(limit) || limit < 1) throw new Error("--limit must be a positive integer");
@@ -74,6 +84,10 @@ console.log(`Loading ${modelId} (voice=${voice}, speed=${speed})...`);
 const tts = await KokoroTTS.from_pretrained(modelId, {
   dtype: "q8",
   device: "cpu",
+  session_options: {
+    intraOpNumThreads: 4,
+    interOpNumThreads: 1,
+  },
 });
 
 let generated = 0;

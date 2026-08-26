@@ -15,6 +15,9 @@ npm.cmd run generate-audio -- --unit=1
 
 # Generate all missing audio
 npm.cmd run generate-audio
+
+# Optional: split generation across four terminal processes
+npm.cmd run generate-audio -- --shard=1/4
 ```
 
 Existing MP3 files are skipped. Use `--force` to regenerate them. Other voices
