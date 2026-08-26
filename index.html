@@ -243,7 +243,7 @@
       <div class="topbar">
         <button id="btnListBack">戻る</button>
         <h1 class="title" id="listTitle">一覧</h1>
-        <button class="ghost"> </button>
+        <button id="btnListReset">リセット</button>
       </div>
     </header>
     <main class="listWrap" id="listMain"></main>
@@ -377,6 +377,7 @@
   var listMain = document.getElementById("listMain");
   var listTitle = document.getElementById("listTitle");
   var btnListBack = document.getElementById("btnListBack");
+  var btnListReset = document.getElementById("btnListReset");
   var btnXOnly = document.getElementById("btnXOnly");
   var btnListView = document.getElementById("btnListView");
   var xOnlyMode = false;
@@ -785,16 +786,24 @@
   }
 
 
-  btnReset.addEventListener("click", function(){
+  function resetSelectedUnit(){
     var ok = confirm("\u3053\u306e\u30e6\u30cb\u30c3\u30c8\u306e\u25cb/X\u8a18\u9332\u3092\u6d88\u3057\u307e\u3059\u304b\uff1f");
     if (!ok) return;
     var items = unitItems(selectedUnit);
     var m = loadMarks();
-    items.forEach(function(s){ delete m[s.id]; });
+    items.forEach(function(s){
+      delete m[s.id];
+      delete revealedState[s.id];
+    });
     saveMarks(m);
-    renderHome();
+    stopSpeak();
+    if (listView.classList.contains("active")) showListView();
+    else renderHome();
     alert("\u30ea\u30bb\u30c3\u30c8\u3057\u307e\u3057\u305f\u3002");
-  });
+  }
+
+  btnReset.addEventListener("click", resetSelectedUnit);
+  btnListReset.addEventListener("click", resetSelectedUnit);
 
   // init
   renderUnitSelect();
